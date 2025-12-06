@@ -1,8 +1,24 @@
 import xml.etree.ElementTree as ET
 import re
+import logging
+
+# Create a logger for this module
+logger = logging.getLogger(__name__)
 
 class LLMResponseParser:
-    def parse(self, raw_xml_string: str) -> dict:
+    def parse_solution(self, raw_xml_string: str) -> dict:
+        """
+        Parse solution response with <step> and <answer> tags.
+        
+        Args:
+            raw_xml_string: XML string with solution steps
+            
+        Returns:
+            Dict with 'steps' list and 'final_answer' string
+        """
+        # Log the raw XML string received from LLM
+        logger.info(f"Parsing solution XML string: {raw_xml_string}")
+        
         steps = []
         final_answer = None
 
@@ -34,9 +50,48 @@ class LLMResponseParser:
              # The PRD expects an <answer> tag, so we'll enforce that.
              pass
 
-
         return {
             "steps": steps,
             "final_answer": final_answer
+        }
+    
+    def parse_hint(self, raw_xml_string: str) -> dict:
+        """
+        Parse hint response with <key_concept> and <hint> tags.
+        
+        Args:
+            raw_xml_string: XML string with key concepts and hints
+            
+        Returns:
+            Dict with 'key_concepts' list and 'hints' list
+        """
+        # Log the raw XML string received from LLM
+        logger.info(f"Parsing hint XML string: {raw_xml_string}")
+        
+        key_concepts = []
+        hints = []
+        
+        # Extract all <key_concept> tags
+        concept_matches = re.findall(r'<key_concept>(.*?)</key_concept>', raw_xml_string, re.DOTALL)
+        for concept_content in concept_matches:
+            key_concepts.append(concept_content.strip())
+        
+        # Extract all <hint> tags
+        hint_matches = re.findall(r'<hint>(.*?)</hint>', raw_xml_string, re.DOTALL)
+        for hint_content in hint_matches:
+            hints.append(hint_content.strip())
+        
+        if not key_concepts and not hints:
+            # If no structured content found, return the raw response as a single hint
+            logger.warning("No key_concept or hint tags found in response")
+            hints.append(raw_xml_string.strip())
+        
+        logger.info(f"Parsed {len(key_concepts)} key concepts and {len(hints)} hints")
+        logger.info(f"Key concepts: {key_concepts}")
+        logger.info(f"Hints: {hints}")
+        
+        return {
+            "key_concepts": key_concepts,
+            "hints": hints
         }
 

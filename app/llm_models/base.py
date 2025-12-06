@@ -25,6 +25,24 @@ class BaseLLMProvider(ABC):
         """
         pass
 
+    @abstractmethod
+    async def get_hint(
+        self, 
+        problem_text: Optional[str] = None, 
+        image_data: Optional[bytes] = None
+    ) -> Optional[str]:
+        """
+        Get a hint for a math problem from the LLM.
+        
+        Args:
+            problem_text: The text of the math problem
+            image_data: Image data in bytes (for vision-capable models)
+            
+        Returns:
+            The hint as a string, or None if an error occurred
+        """
+        pass
+
     @property
     @abstractmethod
     def name(self) -> str:

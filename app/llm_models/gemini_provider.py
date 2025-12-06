@@ -6,31 +6,7 @@ from PIL import Image
 import io
 
 from app.llm_models.base import BaseLLMProvider
-
-
-# System prompt as defined in the PRD
-SYSTEM_PROMPT = """You are an expert Math Tutoring AI designed to help students learn problem-solving logic. Your goal is to provide clear, step-by-step solutions that explain the "why" and "how," not just the result.
-
-### OUTPUT FORMAT RULES
-You must strictly follow this XML-style format for your response. Do not include markdown code blocks (like ```xml) around the output.
-
-<step>
-[Explain the first logical step here. Define variables or state the formula being used.]
-</step>
-<step>
-[Perform the next calculation or logical deduction. Show intermediate work.]
-</step>
-... (add as many steps as necessary) ...
-<answer>
-[The final result]
-</answer>
-
-### CONTENT GUIDELINES
-1. **Math Formatting:** Use LaTeX formatting for all mathematical expressions. Enclose inline math in single dollar signs (e.g., $x^2$) and block math in double dollar signs (e.g., $$ \\frac{a}{b} $$).
-2. **Pedagogy:** Do not skip logical jumps. Write as if you are teaching a student who needs to see the intermediate work.
-3. **Tone:** Be encouraging, professional, and concise.
-4. **Non-Math Inputs:** If the user sends text that is not a math problem, politely decline inside a single <step> tag.
-"""
+from app.llm_models.config import SYSTEM_PROMPT, HINT_PROMPT
 
 
 class GeminiProvider(BaseLLMProvider):
@@ -53,6 +29,12 @@ class GeminiProvider(BaseLLMProvider):
         self.model = genai.GenerativeModel(
             'gemini-2.5-flash',
             system_instruction=SYSTEM_PROMPT
+        )
+        
+        # Separate model for hints
+        self.hint_model = genai.GenerativeModel(
+            'gemini-2.5-flash',
+            system_instruction=HINT_PROMPT
         )
 
     @property
@@ -95,5 +77,39 @@ class GeminiProvider(BaseLLMProvider):
             return response.text
         except Exception as e:
             print(f"Error calling Gemini API: {e}")
+            return None
+
+    async def get_hint(
+        self, 
+        problem_text: Optional[str] = None, 
+        image_data: Optional[bytes] = None
+    ) -> Optional[str]:
+        """Get hint for a math problem from Google Gemini."""
+        if not problem_text and not image_data:
+            raise ValueError("Either problem_text or image_data must be provided.")
+
+        try:
+            # Build content list for the user query
+            user_content_parts = []
+            
+            if problem_text:
+                user_content_parts.append(problem_text)
+            
+            if image_data:
+                # Convert bytes to PIL Image
+                image = Image.open(io.BytesIO(image_data))
+                user_content_parts.append(image)
+            
+            # Generate hint using hint model
+            response = self.hint_model.generate_content(
+                user_content_parts,
+                generation_config={
+                    'temperature': 0.7,
+                }
+            )
+            
+            return response.text
+        except Exception as e:
+            print(f"Error calling Gemini API for hint: {e}")
             return None
 

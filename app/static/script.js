@@ -1,3 +1,13 @@
+// Helper function to safely render MathJax
+function renderMath() {
+    if (window.MathJax && window.MathJax.typesetPromise) {
+        MathJax.typesetPromise().catch((err) => console.log('MathJax rendering error:', err));
+    } else if (window.MathJax && window.MathJax.Hub) {
+        // MathJax 2.x fallback
+        MathJax.Hub.Queue(["Typeset", MathJax.Hub]);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const problemForm = document.getElementById('problem-form');
     const problemTextInput = document.getElementById('problem-text');
@@ -14,6 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     problemForm.addEventListener('submit', async (event) => {
         event.preventDefault(); // Prevent default form submission
+
+        // Determine which button was clicked
+        const submitter = event.submitter;
+        const action = submitter ? submitter.value : 'solution';
 
         // Clear previous results and errors
         solutionContainer.innerHTML = '';
@@ -41,7 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch('/solve', {
+            // Choose endpoint based on which button was clicked
+            const endpoint = action === 'hint' ? '/hint' : '/solve';
+            
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 body: formData,
             });
@@ -54,28 +71,73 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
-            
-            currentSteps = data.steps || [];
-            finalAnswer = data.final_answer || '';
-            currentStepIndex = 0;
 
-            // Display original question (if text was provided)
+            // Display original question
             if (problemText) {
                 originalQuestionDiv.innerHTML = `<h3>Original Question:</h3><p>${problemText}</p>`;
             } else if (problemImage) {
                 originalQuestionDiv.innerHTML = `<h3>Original Question:</h3><p><em>(Image input received)</em></p>`;
             }
 
-            if (currentSteps.length > 0) {
-                displayNextStep();
-                if (currentSteps.length > 1 || (currentSteps.length === 1 && finalAnswer)) {
-                    nextStepButton.style.display = 'block';
+            // Handle hint response
+            if (action === 'hint') {
+                console.log('Hint data received:', data);
+                const keyConceptsArray = data.key_concepts || [];
+                const hintsArray = data.hints || [];
+                console.log('Key concepts:', keyConceptsArray);
+                console.log('Hints:', hintsArray);
+                
+                if (keyConceptsArray.length === 0 && hintsArray.length === 0) {
+                    solutionContainer.innerHTML = `<div class="step-card">No hint available.</div>`;
+                } else {
+                    // Display key concepts
+                    if (keyConceptsArray.length > 0) {
+                        const conceptsHeader = document.createElement('h3');
+                        conceptsHeader.textContent = '🔑 Key Concepts:';
+                        conceptsHeader.style.marginTop = '0';
+                        solutionContainer.appendChild(conceptsHeader);
+                        
+                        keyConceptsArray.forEach((concept, index) => {
+                            const conceptCard = document.createElement('div');
+                            conceptCard.classList.add('step-card');
+                            conceptCard.innerHTML = `<strong>Concept ${index + 1}:</strong> ${concept}`;
+                            solutionContainer.appendChild(conceptCard);
+                        });
+                    }
+                    
+                    // Display hints
+                    if (hintsArray.length > 0) {
+                        const hintsHeader = document.createElement('h3');
+                        hintsHeader.textContent = '💡 Hints:';
+                        solutionContainer.appendChild(hintsHeader);
+                        
+                        hintsArray.forEach((hint, index) => {
+                            const hintCard = document.createElement('div');
+                            hintCard.classList.add('step-card');
+                            hintCard.innerHTML = `<strong>Hint ${index + 1}:</strong> ${hint}`;
+                            solutionContainer.appendChild(hintCard);
+                        });
+                    }
+                    
+                    // Trigger MathJax rendering
+                    renderMath();
                 }
             } else {
-                // Handle cases where AI might politely decline or return a single statement
-                solutionContainer.innerHTML = `<div class="step-card">${finalAnswer || 'No steps provided, but here is a response: ' + JSON.stringify(data)}</div>`;
-            }
+                // Handle solution response
+                currentSteps = data.steps || [];
+                finalAnswer = data.final_answer || '';
+                currentStepIndex = 0;
 
+                if (currentSteps.length > 0) {
+                    displayNextStep();
+                    if (currentSteps.length > 1 || (currentSteps.length === 1 && finalAnswer)) {
+                        nextStepButton.style.display = 'block';
+                    }
+                } else {
+                    // Handle cases where AI might politely decline or return a single statement
+                    solutionContainer.innerHTML = `<div class="step-card">${finalAnswer || 'No steps provided, but here is a response: ' + JSON.stringify(data)}</div>`;
+                }
+            }
 
         } catch (error) {
             console.error('Error:', error);
@@ -108,9 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        // Assuming MathJax will be loaded and render new content. Trigger a re-render if needed.
-        if (window.MathJax) {
-             MathJax.typesetPromise();
-        }
+        // Trigger MathJax rendering for new content
+        renderMath();
     }
 });

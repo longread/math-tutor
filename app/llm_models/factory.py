@@ -6,6 +6,7 @@ from typing import Optional
 from app.llm_models.base import BaseLLMProvider
 from app.llm_models.openai_provider import OpenAIProvider
 from app.llm_models.gemini_provider import GeminiProvider
+from app.llm_models.ollama_provider import OllamaProvider
 
 
 def get_llm_provider(
@@ -16,11 +17,12 @@ def get_llm_provider(
     Get an LLM provider instance based on configuration.
     
     Args:
-        provider_name: Name of the provider ('openai' or 'gemini'). 
+        provider_name: Name of the provider ('openai', 'gemini', or 'ollama'). 
                       If None, reads from LLM_PROVIDER env var.
                       Defaults to 'openai' if not set.
         api_key: API key for the provider. If None, provider will use 
                 environment variables (OPENAI_API_KEY or GOOGLE_API_KEY).
+                For Ollama, this parameter is ignored.
     
     Returns:
         An instance of BaseLLMProvider
@@ -37,9 +39,11 @@ def get_llm_provider(
         return OpenAIProvider(api_key=api_key)
     elif provider_name == 'gemini':
         return GeminiProvider(api_key=api_key)
+    elif provider_name == 'ollama':
+        return OllamaProvider()
     else:
         raise ValueError(
             f"Unsupported LLM provider: {provider_name}. "
-            f"Supported providers: 'openai', 'gemini'"
+            f"Supported providers: 'openai', 'gemini', 'ollama'"
         )
 

@@ -50,11 +50,31 @@ button {
     border-radius: 4px;
     cursor: pointer;
     font-size: 16px;
-    width: 100%;
 }
 
 button:hover {
     background-color: #0056b3;
+}
+.button-group {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 50px !important; /* More space between buttons */
+    margin-top: 10px;
+    width: 100%;
+}
+
+.button-group button {
+    flex: 1 1 auto !important; /* Make buttons take equal space */
+    max-width: calc(50% - 25px);
+}
+
+/* Style the hint button using attribute selector */
+.button-group button[value="hint"] {
+    background-color: #28a745;
+}
+
+.button-group button[value="hint"]:hover {
+    background-color: #218838;
 }
 
 #loading {
